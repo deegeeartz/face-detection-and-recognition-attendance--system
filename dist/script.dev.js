@@ -3,7 +3,7 @@
 var video = document.getElementById("video");
 var vidContain = document.getElementById("vidcontain"); //call the face detection/recgnition library
 
-Promise.all([faceapi.nets.tinyFaceDetector.loadFromUri("/models"), faceapi.nets.faceLandmark68Net.loadFromUri("/models"), faceapi.nets.faceRecognitionNet.loadFromUri("/models"), faceapi.nets.ssdMobilenetv1.loadFromUri("/models")]).then(startWebcam).then(detectFacesNOW); //access the camera
+Promise.all([faceapi.nets.tinyFaceDetector.loadFromUri("/models"), faceapi.nets.faceLandmark68Net.loadFromUri("/models"), faceapi.nets.faceRecognitionNet.loadFromUri("/models"), faceapi.nets.ssdMobilenetv1.loadFromUri("/models")]).then(startWebcam).then(detectFacesNOW).then(faceRecognition); //access the camera
 
 function startWebcam() {
   var devices, videoDevices, externalCamera, stream, _stream;
@@ -87,7 +87,8 @@ function startWebcam() {
   }, null, null, [[0, 23]]);
 }
 
-startWebcam(); //detecting a face
+startWebcam(); //create the canvas on which detection and recognition will be done
+//detecting a face
 
 function detectFacesNOW() {
   return regeneratorRuntime.async(function detectFacesNOW$(_context3) {
@@ -97,8 +98,12 @@ function detectFacesNOW() {
           video.addEventListener('play', function () {
             var canvas = faceapi.createCanvasFromMedia(video);
             vidContain.appendChild(canvas);
+            faceapi.matchDimensions(canvas, {
+              height: video.height,
+              width: video.width
+            });
             setInterval(function _callee() {
-              var detections;
+              var detections, resizedDetections;
               return regeneratorRuntime.async(function _callee$(_context2) {
                 while (1) {
                   switch (_context2.prev = _context2.next) {
@@ -108,11 +113,17 @@ function detectFacesNOW() {
 
                     case 2:
                       detections = _context2.sent;
-                      canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
-                      faceapi.draw.drawDetections(canvas, detections);
-                      faceapi.draw.drawFaceLandmarks(canvas, detections); // console.log(detections);
+                      //resizing the landmark canvas to fit the size ofthe face
+                      resizedDetections = faceapi.resizeResults(detections, {
+                        height: video.height,
+                        width: video.width
+                      });
+                      canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height); //draw canvas
 
-                    case 6:
+                      faceapi.draw.drawDetections(canvas, resizedDetections);
+                      faceapi.draw.drawFaceLandmarks(canvas, resizedDetections); // console.log(detections);
+
+                    case 7:
                     case "end":
                       return _context2.stop();
                   }
@@ -129,4 +140,117 @@ function detectFacesNOW() {
   });
 }
 
-detectFacesNOW();
+detectFacesNOW(); //getting and checking faces in the folders
+
+function getLabelFace() {
+  var labels = ["Dickson"];
+  return Promise.all(labels.map(function _callee2(label) {
+    var descriptions, i, image, seeFace;
+    return regeneratorRuntime.async(function _callee2$(_context4) {
+      while (1) {
+        switch (_context4.prev = _context4.next) {
+          case 0:
+            descriptions = [];
+            i = 1;
+
+          case 2:
+            if (!(i <= 3)) {
+              _context4.next = 13;
+              break;
+            }
+
+            _context4.next = 5;
+            return regeneratorRuntime.awrap(faceapi.fetchImage("/imgdata/".concat(label, "/").concat(i, ".jpg")));
+
+          case 5:
+            image = _context4.sent;
+            _context4.next = 8;
+            return regeneratorRuntime.awrap(faceapi.detectSingleFace(image).withFaceLandmarks().withFaceDescriptor());
+
+          case 8:
+            seeFace = _context4.sent;
+            descriptions.push(seeFace.descriptor);
+
+          case 10:
+            i++;
+            _context4.next = 2;
+            break;
+
+          case 13:
+            return _context4.abrupt("return", new faceapi.LabeledFaceDescriptors(label, descriptions));
+
+          case 14:
+          case "end":
+            return _context4.stop();
+        }
+      }
+    });
+  }));
+}
+
+function faceRecognition() {
+  var LabeledFace, faceMatcher;
+  return regeneratorRuntime.async(function faceRecognition$(_context6) {
+    while (1) {
+      switch (_context6.prev = _context6.next) {
+        case 0:
+          _context6.next = 2;
+          return regeneratorRuntime.awrap(getLabelFace());
+
+        case 2:
+          LabeledFace = _context6.sent;
+          faceMatcher = new faceapi.FaceMatcher(LabeledFace);
+          video.addEventListener('play', function () {
+            var canvas = faceapi.createCanvasFromMedia(video);
+            vidContain.appendChild(canvas);
+            faceapi.matchDimensions(canvas, {
+              height: video.height,
+              width: video.width
+            });
+            setInterval(function _callee3() {
+              var detections, resizedDetections, results;
+              return regeneratorRuntime.async(function _callee3$(_context5) {
+                while (1) {
+                  switch (_context5.prev = _context5.next) {
+                    case 0:
+                      _context5.next = 2;
+                      return regeneratorRuntime.awrap(faceapi.detectAllFaces(video).withFaceLandmarks().withFaceDescriptor());
+
+                    case 2:
+                      detections = _context5.sent;
+                      //resizing the landmark canvas to fit the size ofthe face
+                      resizedDetections = faceapi.resizeResults(detections, {
+                        height: video.height,
+                        width: video.width
+                      });
+                      canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height); //match results and recognize faces
+
+                      results = resizedDetections.map(function (d) {
+                        return faceMatcher.findBestMatch(d.descriptor);
+                      });
+                      results.forEach(function (result, i) {
+                        var box = resizedDetections[i].detection.box;
+                        var drawBox = new faceapi.draw.DrawBox(box, {
+                          label: result
+                        });
+                        drawBox.draw(canvas);
+                      });
+
+                    case 7:
+                    case "end":
+                      return _context5.stop();
+                  }
+                }
+              });
+            }, 100);
+          });
+
+        case 5:
+        case "end":
+          return _context6.stop();
+      }
+    }
+  });
+}
+
+faceRecognition();
