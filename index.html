@@ -11,9 +11,34 @@
     </head>
 
     <body>
-        <div id="vidcontain">
-            <video src id="video" width="600" height="450" autoplay></video>
-        </div>
+        <h1>FACIAL ATTENDANCE SYSTEM</h1>
+        <main class="container">
+            <div id="vidcontain" class="video-container">
+                <div id="loading-overlay" class="overlay">
+                    <div class="loader"></div>
+                    <p>Loading...</p>
+                </div>
+                <div id="recognizing-overlay" class="overlay">
+                    <div class="loader"></div>
+                    <p>Recognizing...</p>
+                </div>
+                <video src id="video" class="video" autoplay></video>
+            </div>
+            <div class="attendance-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>File Name</th>
+                            <th>Entry Time</th>
+                        </tr>
+                    </thead>
+                    <tbody id="attendance-data">
+                        <!-- Attendance data will be added here dynamically -->
+                    </tbody>
+                </table>
+            </div>
+            <button id="export-button" class="export-button">Export to CSV</button>
+        </main>
 
     </body>
 

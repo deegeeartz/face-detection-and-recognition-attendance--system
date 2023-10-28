@@ -1,17 +1,26 @@
 const video = document.getElementById("video");
 const vidContain = document.getElementById("vidcontain");
+const loadingOverlay = document.getElementById("loading-overlay");
+const recognizingOverlay = document.getElementById("recognizing-overlay");
 
-async function setup() {
+// Preload models and initialize FaceMatcher once models are loaded.
+async function initialize() {
+    loadingOverlay.classList.add("show");
     await loadModels();
+    loadingOverlay.classList.remove("show");
     const knownFaces = await loadKnownFaces();
+    console.log("loading face");
     startWebcam(knownFaces);
 }
 
 async function loadModels() {
-    await faceapi.nets.ssdMobilenetv1.loadFromUri("/models");
-    await faceapi.nets.faceLandmark68Net.loadFromUri("/models");
-    await faceapi.nets.faceRecognitionNet.loadFromUri("/models");
-    await faceapi.nets.tinyFaceDetector.loadFromUri("/models");
+    // Preload models and store them in variables.
+    await Promise.all([
+        faceapi.nets.ssdMobilenetv1.loadFromUri("/models"),
+        faceapi.nets.faceLandmark68Net.loadFromUri("/models"),
+        faceapi.nets.faceRecognitionNet.loadFromUri("/models"),
+        faceapi.nets.tinyFaceDetector.loadFromUri("/models")
+    ]);
 }
 
 async function loadKnownFaces() {
@@ -38,6 +47,7 @@ async function loadKnownFaces() {
 }
 
 async function startWebcam(knownFaces) {
+    recognizingOverlay.classList.add("show");
     try {
         const devices = await navigator.mediaDevices.enumerateDevices();
         const videoDevices = devices.filter(device => device.kind === 'videoinput');
@@ -47,19 +57,21 @@ async function startWebcam(knownFaces) {
         video.addEventListener('play', () => {
             const canvas = faceapi.createCanvasFromMedia(video);
             vidContain.appendChild(canvas);
-            faceapi.matchDimensions(canvas, { height: video.height, width: video.width });
+            faceapi.matchDimensions(canvas, { height: video.videoHeight, width: video.videoWidth });
 
+            recognizingOverlay.classList.remove("show");
             setInterval(async() => {
                 const detections = await faceapi.detectAllFaces(video).withFaceLandmarks().withFaceDescriptors();
-                const resizedDetections = faceapi.resizeResults(detections, { height: video.height, width: video.width });
+                const resizedDetections = faceapi.resizeResults(detections, { height: video.videoHeight, width: video.videoWidth });
                 drawResults(resizedDetections, canvas, knownFaces);
-            }, 100);
+            }, 1000);
         });
     } catch (error) {
         console.error(error);
     }
 }
 
+// Function to get user media
 function getUserMedia(videoDevices) {
     if (videoDevices.length > 0) {
         const preferredCamera = videoDevices.find(device => device.label.includes('facing back')) || videoDevices[0];
@@ -83,4 +95,4 @@ function drawResults(detections, canvas, knownFaces) {
     });
 }
 
-setup();
+initialize();

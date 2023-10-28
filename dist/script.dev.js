@@ -2,25 +2,30 @@
 
 var video = document.getElementById("video");
 var vidContain = document.getElementById("vidcontain");
+var loadingOverlay = document.getElementById("loading-overlay");
+var recognizingOverlay = document.getElementById("recognizing-overlay"); // Preload models and initialize FaceMatcher once models are loaded.
 
-function setup() {
+function initialize() {
   var knownFaces;
-  return regeneratorRuntime.async(function setup$(_context) {
+  return regeneratorRuntime.async(function initialize$(_context) {
     while (1) {
       switch (_context.prev = _context.next) {
         case 0:
-          _context.next = 2;
+          loadingOverlay.classList.add("show");
+          _context.next = 3;
           return regeneratorRuntime.awrap(loadModels());
 
-        case 2:
-          _context.next = 4;
+        case 3:
+          loadingOverlay.classList.remove("show");
+          _context.next = 6;
           return regeneratorRuntime.awrap(loadKnownFaces());
 
-        case 4:
+        case 6:
           knownFaces = _context.sent;
+          console.log("loading face");
           startWebcam(knownFaces);
 
-        case 6:
+        case 9:
         case "end":
           return _context.stop();
       }
@@ -34,21 +39,9 @@ function loadModels() {
       switch (_context2.prev = _context2.next) {
         case 0:
           _context2.next = 2;
-          return regeneratorRuntime.awrap(faceapi.nets.ssdMobilenetv1.loadFromUri("/models"));
+          return regeneratorRuntime.awrap(Promise.all([faceapi.nets.ssdMobilenetv1.loadFromUri("/models"), faceapi.nets.faceLandmark68Net.loadFromUri("/models"), faceapi.nets.faceRecognitionNet.loadFromUri("/models"), faceapi.nets.tinyFaceDetector.loadFromUri("/models")]));
 
         case 2:
-          _context2.next = 4;
-          return regeneratorRuntime.awrap(faceapi.nets.faceLandmark68Net.loadFromUri("/models"));
-
-        case 4:
-          _context2.next = 6;
-          return regeneratorRuntime.awrap(faceapi.nets.faceRecognitionNet.loadFromUri("/models"));
-
-        case 6:
-          _context2.next = 8;
-          return regeneratorRuntime.awrap(faceapi.nets.tinyFaceDetector.loadFromUri("/models"));
-
-        case 8:
         case "end":
           return _context2.stop();
       }
@@ -131,28 +124,30 @@ function startWebcam(knownFaces) {
     while (1) {
       switch (_context5.prev = _context5.next) {
         case 0:
-          _context5.prev = 0;
-          _context5.next = 3;
+          recognizingOverlay.classList.add("show");
+          _context5.prev = 1;
+          _context5.next = 4;
           return regeneratorRuntime.awrap(navigator.mediaDevices.enumerateDevices());
 
-        case 3:
+        case 4:
           devices = _context5.sent;
           videoDevices = devices.filter(function (device) {
             return device.kind === 'videoinput';
           });
-          _context5.next = 7;
+          _context5.next = 8;
           return regeneratorRuntime.awrap(getUserMedia(videoDevices));
 
-        case 7:
+        case 8:
           stream = _context5.sent;
           video.srcObject = stream;
           video.addEventListener('play', function () {
             var canvas = faceapi.createCanvasFromMedia(video);
             vidContain.appendChild(canvas);
             faceapi.matchDimensions(canvas, {
-              height: video.height,
-              width: video.width
+              height: video.videoHeight,
+              width: video.videoWidth
             });
+            recognizingOverlay.classList.remove("show");
             setInterval(function _callee() {
               var detections, resizedDetections;
               return regeneratorRuntime.async(function _callee$(_context4) {
@@ -165,8 +160,8 @@ function startWebcam(knownFaces) {
                     case 2:
                       detections = _context4.sent;
                       resizedDetections = faceapi.resizeResults(detections, {
-                        height: video.height,
-                        width: video.width
+                        height: video.videoHeight,
+                        width: video.videoWidth
                       });
                       drawResults(resizedDetections, canvas, knownFaces);
 
@@ -176,23 +171,24 @@ function startWebcam(knownFaces) {
                   }
                 }
               });
-            }, 100);
+            }, 1000);
           });
-          _context5.next = 15;
+          _context5.next = 16;
           break;
 
-        case 12:
-          _context5.prev = 12;
-          _context5.t0 = _context5["catch"](0);
+        case 13:
+          _context5.prev = 13;
+          _context5.t0 = _context5["catch"](1);
           console.error(_context5.t0);
 
-        case 15:
+        case 16:
         case "end":
           return _context5.stop();
       }
     }
-  }, null, null, [[0, 12]]);
-}
+  }, null, null, [[1, 13]]);
+} // Function to get user media
+
 
 function getUserMedia(videoDevices) {
   if (videoDevices.length > 0) {
@@ -224,4 +220,4 @@ function drawResults(detections, canvas, knownFaces) {
   });
 }
 
-setup();
+initialize();
